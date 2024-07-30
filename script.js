@@ -1,113 +1,157 @@
 class Task {
     constructor(name) {
-        this.name = name;
-        this.completed = false;
+      this.name = name;
+      this.completed = false;
     }
-}
-
-class List {
+  }
+  
+  class List {
     constructor(name) {
-        this.name = name;
-        this.tasks = [];
+      this.name = name;
+      this.tasks = [];
+      this.loadFromLocalStorage();
     }
-
+  
     addTask(taskName) {
-        const task = new Task(taskName);
-        this.tasks.push(task);
-        this.saveToLocalStorage();
+      const task = new Task(taskName);
+      this.tasks.push(task);
+      this.saveToLocalStorage();
     }
-
+  
     removeTask(taskIndex) {
-        this.tasks.splice(taskIndex, 1);
-        this.saveToLocalStorage();
+      this.tasks.splice(taskIndex, 1);
+      this.saveToLocalStorage();
     }
-
+  
     toggleTaskCompletion(taskIndex) {
-        this.tasks[taskIndex].completed = !this.tasks[taskIndex].completed;
-        this.saveToLocalStorage();
+      this.tasks[taskIndex].completed = !this.tasks[taskIndex].completed;
+      this.saveToLocalStorage();
     }
-
+  
+    getCompletedPercentage() {
+      const totalTasks = this.tasks.length;
+      const completedTasks = this.tasks.filter(task => task.completed).length;
+      return totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
+    }
+  
     saveToLocalStorage() {
-        localStorage.setItem(this.name, JSON.stringify(this.tasks));
+      localStorage.setItem(this.name, JSON.stringify(this.tasks));
     }
-
+  
     loadFromLocalStorage() {
-        const savedTasks = JSON.parse(localStorage.getItem(this.name));
-        if (savedTasks) {
-            this.tasks = savedTasks.map(taskData => {
-                const task = new Task(taskData.name);
-                task.completed = taskData.completed;
-                return task;
-            });
-        }
+      const savedTasks = JSON.parse(localStorage.getItem(this.name));
+      if (savedTasks) {
+        this.tasks = savedTasks.map(task => Object.assign(new Task(), task));
+      }
     }
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    const listsContainer = document.getElementById('lists');
-    const newListNameInput = document.getElementById('new-list-name');
-    const newListButton = document.getElementById('new-list-button');
-
-    newListButton.addEventListener('click', () => {
-        const listName = newListNameInput.value.trim();
-        if (listName) {
-            const list = new List(listName);
-            list.loadFromLocalStorage();
-            addListToDOM(list);
-            newListNameInput.value = '';
-        }
-    });
-
-    function addListToDOM(list) {
+  }
+  
+  class ToDoApp {
+    constructor() {
+      this.lists = [];
+      this.loadFromLocalStorage();
+      this.render();
+    }
+  
+    addList(listName) {
+      const newList = new List(listName);
+      this.lists.push(newList);
+      this.saveToLocalStorage();
+      this.render();
+    }
+  
+    saveToLocalStorage() {
+      localStorage.setItem('toDoLists', JSON.stringify(this.lists.map(list => list.name)));
+    }
+  
+    loadFromLocalStorage() {
+      const savedLists = JSON.parse(localStorage.getItem('toDoLists'));
+      if (savedLists) {
+        this.lists = savedLists.map(listName => new List(listName));
+      }
+    }
+  
+    render() {
+      const container = document.getElementById('lists-container');
+      container.innerHTML = '';
+      this.lists.forEach((list, listIndex) => {
         const listElement = document.createElement('div');
         listElement.className = 'list';
-        listElement.innerHTML = `
-            <h2 class="list-title">${list.name}</h2>
-            <input type="text" class="task-input" placeholder="New Task">
-            <button class="add-task-button">Add Task</button>
-            <ul class="tasks-list"></ul>
-        `;
-        listsContainer.appendChild(listElement);
-
-        const taskInput = listElement.querySelector('.task-input');
-        const addTaskButton = listElement.querySelector('.add-task-button');
-        const tasksUl = listElement.querySelector('.tasks-list');
-
+  
+        const listNameElement = document.createElement('div');
+        listNameElement.className = 'list-name';
+        listNameElement.textContent = list.name;
+  
+        const taskInput = document.createElement('input');
+        taskInput.type = 'text';
+        taskInput.placeholder = 'New Task';
+  
+        const addTaskButton = document.createElement('button');
+        addTaskButton.textContent = 'Add Task';
         addTaskButton.addEventListener('click', () => {
-            const taskName = taskInput.value.trim();
-            if (taskName) {
-                list.addTask(taskName);
-                addTaskToDOM(taskName, tasksUl, list.tasks.length - 1, list);
-                taskInput.value = '';
-            }
+          if (taskInput.value) {
+            list.addTask(taskInput.value);
+            this.render();
+          }
         });
-
-        list.tasks.forEach((task, index) => {
-            addTaskToDOM(task.name, tasksUl, index, list, task.completed);
-        });
-    }
-
-    function addTaskToDOM(taskName, ulElement, taskIndex, list, completed = false) {
-        const taskLi = document.createElement('li');
-        taskLi.className = completed ? 'completed' : '';
-        taskLi.innerHTML = `
-            <span class="task-name">${taskName}</span>
-            <button class="complete-task-button">Complete</button>
-            <button class="delete-task-button">Delete</button>
-        `;
-        ulElement.appendChild(taskLi);
-
-        const completeButton = taskLi.querySelector('.complete-task-button');
-        const deleteButton = taskLi.querySelector('.delete-task-button');
-
-        completeButton.addEventListener('click', () => {
+  
+        const tasksContainer = document.createElement('div');
+        list.tasks.forEach((task, taskIndex) => {
+          const taskElement = document.createElement('div');
+          taskElement.className = 'task';
+  
+          const taskNameElement = document.createElement('span');
+          taskNameElement.textContent = task.name;
+          if (task.completed) {
+            taskNameElement.classList.add('completed');
+          }
+  
+          const taskButtons = document.createElement('div');
+          taskButtons.className = 'task-buttons';
+  
+          const toggleButton = document.createElement('button');
+          toggleButton.className = 'toggle';
+          toggleButton.textContent = task.completed ? 'Undo' : 'Complete';
+          toggleButton.addEventListener('click', () => {
             list.toggleTaskCompletion(taskIndex);
-            taskLi.classList.toggle('completed');
-        });
-
-        deleteButton.addEventListener('click', () => {
+            this.render();
+          });
+  
+          const removeButton = document.createElement('button');
+          removeButton.className = 'remove';
+          removeButton.textContent = 'Remove';
+          removeButton.addEventListener('click', () => {
             list.removeTask(taskIndex);
-            ulElement.removeChild(taskLi);
+            this.render();
+          });
+  
+          taskButtons.appendChild(toggleButton);
+          taskButtons.appendChild(removeButton);
+          taskElement.appendChild(taskNameElement);
+          taskElement.appendChild(taskButtons);
+          tasksContainer.appendChild(taskElement);
         });
+  
+        const completedPercentageElement = document.createElement('div');
+        completedPercentageElement.className = 'completed-percentage';
+        completedPercentageElement.textContent = `Completed: ${list.getCompletedPercentage()}%`;
+  
+        listElement.appendChild(listNameElement);
+        listElement.appendChild(taskInput);
+        listElement.appendChild(addTaskButton);
+        listElement.appendChild(tasksContainer);
+        listElement.appendChild(completedPercentageElement);
+        container.appendChild(listElement);
+      });
     }
-});
+  }
+  
+  const app = new ToDoApp();
+  
+  document.getElementById('new-list-button').addEventListener('click', () => {
+    const listName = document.getElementById('list-name').value;
+    if (listName) {
+      app.addList(listName);
+    }
+  });
+  
